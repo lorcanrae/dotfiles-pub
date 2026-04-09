@@ -1,0 +1,236 @@
+;; Comments are prefixed by double-semicolon. A single semicolon is parsed as the
+;; keyboard key. Comments are ignored for the configuration file.
+;;
+;; This configuration language is Lisp-like. If you're unfamiliar with Lisp,
+;; don't be alarmed. The maintainer jtroo is also unfamiliar with Lisp. You
+;; don't need to know Lisp in-depth to be able to configure kanata.
+;;
+;; If you follow along with the examples, you should be fine. Kanata should
+;; also hopefully have helpful error messages in case something goes wrong.
+;; If you need help, you are welcome to ask.
+
+;; One dfcfg entry may be added if desired. This is used for configuration
+;; key-value pairs that change kanata's behaviour at a global level.
+;; All defcfg options are optional.
+
+(defcfg
+    ;; Kanata on Linux automatically detects and grabs input devices
+    ;; when none of the explicit device configurations are in use.
+    ;; In case kanata is undesirably grabbing mouse-like devices,
+    ;; you can use a configuration item to change detection behaviour.
+    linux-device-detect-mode keyboard-only
+
+    ;; Enable processing of keys that are not in defsrc.
+    ;; This is useful if you are only mapping a few keys in defsrc instead of
+    ;; most of the keys on your keyboard. Without this, the tap-hold-release and
+    ;; tap-hold-press actions will not activate for keys that are not in defsrc.
+    process-unmapped-keys yes
+
+    ;; This configuration makes multiple tap-hold actions that are activated near
+    ;; in time expire their timeout quicker. Without this, the timeout for the 2nd
+    ;; tap-hold onwards will start from 0ms after the previous tap-hold expires.
+    ;;
+    concurrent-tap-hold yes
+)
+
+;; Only one defsrc is allowed.
+;;
+;; defsrc defines the keys that will be intercepted by kanata. The order of the
+;; keys matches with deflayer declarations and all deflayer declarations must
+;; have the same number of keys as defsrc. Any keys not listed in defsrc will
+;; be passed straight to the operating system.
+
+;; This is very obviously QWERTY - this is because it is based on the `event.code`
+;; that is emitted by the hardware key-press. The operating system will then interpret
+;; this code and display a character based on the chosen keyboard layout.
+;; As far as I understand, Kanata does the same: interpret the `event.code` - emit something#
+;; Use this tool to get the `event.code`: https://www.toptal.com/developers/keycode
+
+
+;; defsrc captures hardware scan code
+(defsrc ;; Dell XPS13 laptop ISO-UK keyboard
+  Backquote        Digit1 Digit2 Digit3 Digit4 Digit5 Digit6 Digit7 Digit8 Digit9 Digit0       Minus       Equal         Backspace
+  Tab                   KeyQ   KeyW   KeyE   KeyR   KeyT   KeyY   KeyU   KeyI   KeyO    KeyP       BracketLeft BracketRight  Enter
+  CapsLock              KeyA   KeyS   KeyD   KeyF   KeyG   KeyH   KeyJ   KeyK   KeyL   Semicolon     Quote      Backslash
+  ShiftLeft IntlBackslash  KeyZ   KeyX   KeyC   KeyV   KeyB   KeyN   KeyM   Comma  Period       Slash                   ShiftRight
+  ControlLeft       MetaLeft AltLeft                   Space                   AltRight       MetaRight ControlRight
+)
+
+;; Variables for values bulk changes
+(defvar
+  tap-time 200
+  hold-time 150
+  tt $tap-time
+  ht $hold-time
+
+  pinky-tap 300
+  pinky-hold 250
+  ptt $pinky-tap
+  pht $pinky-hold
+
+  ;; Define left-hand and right-hand keys for bilateral combinations on home row mods
+  ;; these lists determine which keys belong to which hand
+  ;; May have to be defined as Colemak-dh-iso
+  left-hand-keys (
+    q w f p b
+    a r s t g
+    z x c d v b
+  )
+
+  ;; Let pass through on common single left hand ctrl combinations
+  ;; The QWERTY keys that correspond to the appropriate Colemak-dh-iso key is removed.
+  ;; Mappings:
+  ;;    QWERTY:         e, d, \, z, x
+  ;;    Colemak-dh-iso: f, s, z, x, c
+  left-hand-keys-ctrl (
+    q w p b
+    a r g
+  )
+
+  right-hand-keys (
+    j l u y ;
+    m n e i o
+    k h , . /
+  )
+)
+
+
+;; The first layer defined is the layer that will be active by default when kanata starts up.
+;; Works with a UK QWERTY layout
+
+(deflayer base
+  grv              1      2      3      4      5      6      7      8      9      0            -           =             bspc
+  tab                   q      w      f      p      b      j      l      u      y       ;          [           ]             ret
+  @cap-sym              @a-mod @r-mod @s-mod @t-mod g      m      @n-mod @e-mod @i-mod o             '          \
+  @lsft-chord z              x      c      d      v      IntlBackslash k      h      ,      .            /                       @rsft-chord
+  lctl              lmet     lalt                      @spc-nav                ralt           rmet      rctl
+)
+
+;; Base layer with no home row mods
+(deflayer nomods
+  grv              1      2      3      4      5      6      7      8      9      0            -           =             bspc
+  tab                   q      w      f      p      b      j      l      u      y       ;          [           ]             Enter
+  @cap-sym              a      r      s      t      g      m      n      e      i      o             '          \
+  lsft      z              x      c      d      v      IntlBackslash k      h      Comma  Period       Slash                   rsft
+  lctl              lmet     lalt                      @spc-nav                ralt           rmet      rctl
+)
+
+(deffakekeys
+    to-base (layer-switch base)
+)
+
+;; ADDITIONAL LAYERS
+
+;; Navigation Layer
+;; Goal: enable vim motions
+(deflayer nav-layer
+  _                _      _      _      _      _      _      _      _      _      _            _           _             _
+  _                     _      _      @cw    _      _      _      home   ArrowUp end     del        _           _             _
+  _                     @a-mod @r-mod @s-mod @t-mod _      _      ArrowLeft ArrowDown ArrowRight bspc          _          _
+  _         _              _      _      d      _      _      _      _      _      _            _                       _
+  _                 _        _                         _                       _              _         _
+)
+;;                                             left hand | right hand
+
+;; Symbol Layer
+;; Goal: ergonomics
+(deflayer symbol-layer
+  _                _      _      _      _      _      _      _      _      _      _            _           _             _
+  _                     grv    -      @<     @>     @|     @^     @{     @}     @$      _          _           _             _
+  _                     @!     +      =      @*     @&     @#     @rpen  @lpen  @_     ;             @dq        _
+  _         @~             /      [      ]      @%     _      @at    @:     ,      .            @?                      _
+  _                 _        _                         _                       _              _         _
+)
+;;                                             left hand | right hand
+
+;; defalias is used to declare a shortcut for a more complicated action to keep
+;; the deflayer declarations clean and aligned. The alignment in deflayers is not
+;; necessary, but is strongly recommended for ease of understanding visually.
+;;
+;; Aliases are referred to by `@<alias_name>`.
+
+(defalias
+
+  tap (multi
+    (layer-switch nomods)
+    (on-idle-fakekey to-base tap 20)
+  )
+
+  ;; Home row mods w/ bilateral combinations
+  ;; Left hand mods only activate when pressing right-hand keys
+  a-mod (tap-hold-release-keys $ptt $pht (multi a @tap) lmet $left-hand-keys) ;; a - left super
+  r-mod (tap-hold-release-keys $tt $ht (multi r @tap) lalt $left-hand-keys) ;; r - left alt
+  s-mod (tap-hold-release-keys $tt $ht (multi s @tap) lsft $left-hand-keys) ;; s - left shift
+  ;; DISABLED - I was pushing it way to often, re-assess with a longer tap time
+  ;; c-mod (tap-hold-release-keys $tt $ht (multi c @tap) (multi lctl lsft) $left-hand-keys) ;; c - left ctrl + left shift
+
+  ;; allow pass-through for common single hand ctrl mods
+  t-mod (tap-hold-release-keys $tt $ht (multi t @tap) lctl $left-hand-keys-ctrl) ;; t - left ctrl
+
+  ;; Right hand mods only activate when pressing right-hand keys
+  n-mod (tap-hold-release-keys $tt $ht (multi n @tap) rctl $right-hand-keys) ;; n - right ctrl
+  e-mod (tap-hold-release-keys $tt $ht (multi e @tap) rsft $right-hand-keys) ;; e - right shift
+  i-mod (tap-hold-release-keys $tt $ht (multi i @tap) lalt $right-hand-keys) ;; i - left alt - right alt can be a gotcha
+  o-mod (tap-hold-release-keys $tt $ht (multi o @tap) rmet $right-hand-keys) ;; o - right super
+  ;; DISABLED - I was pushing it way to often, re-assess with a longer tap time
+  ;; m-mod (tap-hold-release-keys $tt $ht (multi m @tap) (multi rctl rsft) $right-hand-keys) ;; m - right ctrl + right shift
+
+  ;; tap for esc, hold for symbol layer - capslock is a dead key
+  cap-sym (tap-hold $tt $ht esc (layer-toggle symbol-layer))
+
+  ;; tap for space, hold for nav layer
+  spc-nav (tap-hold $tt $ht spc (layer-toggle nav-layer))
+
+  ;; Symbol aliases for compatability
+  < S-,
+  > S-.
+  | S-IntlBackslash
+  ! S-1
+  * S-8
+  & S-7
+  ~ S-\
+  % S-5
+  # Backslash
+  ^ S-6
+  at S-'
+  rpen S-9
+  lpen S-0
+  $ S-4
+  dq S-2
+  { S-BracketLeft
+  } S-BracketRight
+  : S-;
+  _ S-Minus
+  ? S-Slash
+
+  cw (caps-word 2000)
+
+  ;; QWERTY layer switch commands
+  to-qwerty (layer-switch qwerty)
+  to-colemak (layer-switch base)
+
+  ;; Special shift keys that activate the chord layer when BOTH are held
+  ;; In base/Colemak layer
+  lsft-chord (tap-hold-release $tt $ht lsft (layer-toggle shift-chord))
+  rsft-chord (tap-hold-release $tt $ht rsft (layer-toggle shift-chord))
+)
+
+
+;; SWITCHING TO QWERTY AND BACK TO COLEMAK
+
+(deflayer shift-chord
+  _                _      _      _      _      _      _      _      _      _      _            _           _             _
+  _                     @to-qwerty _      _      _      _      _      _      _      _       _          _           _             _
+  _                     _      _      _      _      _      _      _      _      _      _             _          _
+  _         _              _      _      _      _      _      _      _      _      _            _                       _
+  _                 _        _                         _                       _              _         _
+)
+
+;; Add QWERTY layer with its own shift-chord return
+(deflayer qwerty
+  grv              1      2      3      4      5      6      7      8      9      0            -           =             bspc
+  tab                   q      w      e      r      t      y      u      i      o       p          [           ]             ret
+  @to-colemak           a      s      d      f      g      h      j      k      l      ;             '          \
+  lshft     IntlBackslash  z      x      c      v      b      n      m      ,      .            /                       rsft
+  lctl              lmet     lalt                      spc                     ralt           rmet      rctl
+)
