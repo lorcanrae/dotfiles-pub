@@ -73,3 +73,8 @@ Disable `Super + L` - Lock the screen:
 ```bash
 gsettings set org.gnome.settings-daemon.plugins.media-keys screensaver '[]'
 ```
+
+
+# MacOS Reference
+
+A decent reference: https://github.com/nmfirdausw/kanata-config
